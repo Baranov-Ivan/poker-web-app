@@ -1,0 +1,14 @@
+.players-container {
+    margin: 0 auto;
+    width: 40%;
+    display: flex;
+    justify-content: space-between;
+}
+
+.player {
+    /*align-self: flex-end;*/
+}
+
+.opponent {
+    /*align-self: flex-start;*/
+}
