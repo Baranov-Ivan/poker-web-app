@@ -28,3 +28,7 @@ export function pickCards(cardsInPlay: string[], numOfCards: number): string[] {
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
 }
+
+export function makeAPIurl(table: string, playersCards: string[]): string {
+    return "https://api.pokerapi.dev/v1/winner/texas_holdem?cc=" + table + "&pc[]=" + playersCards[1] + "&pc[]=" + playersCards[0];
+}

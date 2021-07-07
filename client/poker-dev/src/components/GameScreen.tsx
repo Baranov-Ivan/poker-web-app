@@ -29,7 +29,7 @@ export const GameScreen = observer(() => {
                     <p>Role: {socket.opponent.role}</p>
                 }
                 <p>Stack: {socket.opponent.stack}</p>
-                {socket.opponent.bet && socket.opponent.bet > 0 &&
+                {socket.opponent.bet && socket.opponent.bet >= 0 &&
                     <p>Bet: {socket.opponent.bet}</p>
                 }
                 {socket.opponent.cards && socket.opponent.cards.length !== 0 &&
@@ -43,7 +43,7 @@ export const GameScreen = observer(() => {
                     <p>Role: {socket.player.role}</p>
                 }
                 <p>Stack: {socket.player.stack}</p>
-                {socket.player.bet && socket.player.bet > 0 &&
+                {socket.player.bet && socket.player.bet >= 0 &&
                     <p>Bet: {socket.player.bet}</p>
                 }
                 {socket.player.cards && socket.player.cards.length !== 0 &&

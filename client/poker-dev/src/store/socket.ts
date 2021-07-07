@@ -43,12 +43,18 @@ export class Socket {
         this.socket.on("turnOptions",this.handleTurnOptions.bind(this));
         this.socket.on("infoUpdate",this.handleInfoUpdate.bind(this));
         this.socket.on("timerUpdate",this.handleTimerUpdate.bind(this));
+        this.socket.on("tableUpdate",this.handleTableUpdate.bind(this));
+        this.socket.on("stageChange",this.handleStageChange.bind(this));
+        this.socket.on("cardsReveal",this.handleCardsReveal.bind(this))
         //unify action messages under one signal???
         this.socket.on("foldMessage",this.handleFoldMessage.bind(this));
         this.socket.on("callMessage",this.handleCallMessage.bind(this));
+        this.socket.on("checkMessage",this.handleCheckMessage.bind(this));
+        this.socket.on("playWinner",this.handlePlayWinner.bind(this));
 
         console.log(this.socket.id);
 
+        //TODO: refactor functions. separate functions that receive/transmit data and make "pure" mobx actions that only changes state values
         makeAutoObservable(this, {
             socket: false,
             //handleInit: action.bound,
@@ -64,6 +70,11 @@ export class Socket {
             handleInfoUpdate: action.bound,
             handleFoldMessage: action.bound,
             handleCallMessage: action.bound,
+            handleCheckMessage: action.bound,
+            handleTableUpdate: action.bound,
+            handleStageChange: action.bound,
+            handleCardsReveal: action.bound,
+            handlePlayWinner: action.bound,
         });
     }
 
@@ -166,6 +177,7 @@ export class Socket {
 
         this.isFirst = false;
 
+        this.table = [];
         this.message = "";
         this.currentBank = obj.currentBank;
 
@@ -180,6 +192,47 @@ export class Socket {
                 this.opponent.role = obj.players[player].role;
             }
         });
+    }
+
+    handleTableUpdate(object: string): void {
+        const obj = JSON.parse(object);
+        this.table = obj;
+    }
+
+    handleStageChange(object: string): void {
+        const obj = JSON.parse(object);
+
+        Object.keys(obj.players).map( (player) => {
+            if (player === this.id) {
+                this.player.bet = obj.players[player].bet;
+            } else {
+                this.opponent.bet = obj.players[player].bet;
+            }
+        });
+    }
+
+    handleCardsReveal(object: string): void {
+        const obj = JSON.parse(object);
+
+        this.message = "Showdown!";
+        Object.keys(obj).map( (player) => {
+           if(player === this.opponent.socketId)  {
+               this.opponent.cards = obj[player].cards;
+           }
+        });
+    }
+
+    handlePlayWinner(object: string): void {
+        const obj = JSON.parse(object);
+
+        this.message = obj.message;
+
+        this.currentBank = obj.currentBank;
+        if(obj.winner.id = this.id) {
+            this.player.stack = obj.winner.stack;
+        } else {
+            this.opponent.stack = obj.winner.stack;
+        }
     }
 
     handleFoldMessage(object: string): void {
@@ -228,7 +281,20 @@ export class Socket {
         if(obj.player.id === this.id) {
             this.player.bet = obj.player.bet;
             this.player.stack = obj.player.stack;
+        } else {
+            this.opponent.bet = obj.player.bet;
+            this.opponent.stack = obj.player.stack;
         }
+    }
+
+    handleCheckMessage(message: string): void {
+        this.opponentTimer = false;
+        this.playerTimer = false;
+        this.turnTime = -1;
+
+        this.isCurrentPlayer = false;
+
+        this.message = message;
     }
 
     handleFoldClick(): void {
@@ -237,5 +303,9 @@ export class Socket {
 
     handleCallClick(): void {
         this.socket.emit("callCommand",this.gameCode);
+    }
+
+    handleCheckClick(): void {
+        this.socket.emit("checkCommand",this.gameCode);
     }
 }

@@ -1,6 +1,6 @@
 import {Server, Socket} from "socket.io";
-import {getKeysByValue, makeId, pickCards} from "./utils";
-import {Actions, GameState, JoinState, playerNames, Role} from "./types";
+import {getKeysByValue, makeAPIurl, makeId, pickCards} from "./utils";
+import {Actions, apiResult, GameState, JoinState, playerNames, Role} from "./types";
 import {createServer} from "http";
 import {BIG_BLIND, SMALL_BLIND, TURN_TIME} from "./constants";
 
@@ -21,7 +21,6 @@ const io = new Server(httpServer, {
 });
 
 io.on('connection', (client: Socket) => {
-    //client.emit('init', {data: "hello world"});
 
     client.on("newGame", handleNewGame);
     client.on("joinGame", handleJoinGame);
@@ -29,18 +28,13 @@ io.on('connection', (client: Socket) => {
     //Need to unify under one command handle?
     client.on("foldCommand", applyFoldCommand);
     client.on("callCommand", applyCallCommand);
+    client.on("checkCommand", applyCheckCommand)
 
     function handleNewGame(playerName: string): void {
         let roomName = makeId(5);
         clientRooms[client.id] = roomName;
 
-        //тут инициализируется начальный state для партии??
-        //state[roomName] = some function
-
         client.join(roomName);
-        //Temporary removed. TS issues. Must be handled in custom object
-        ////client.number = 1;
-        ////client.name = playerName;
 
         clientNames[client.id] = playerName;
 
@@ -52,7 +46,6 @@ io.on('connection', (client: Socket) => {
         state[roomName] = gameState;
 
         client.emit("gameCode", roomName);
-        //client.emit("init", 1);
     }
 
     function handleJoinGame(infoForJoin: string): void {
@@ -78,42 +71,12 @@ io.on('connection', (client: Socket) => {
         clientRooms[client.id] = roomName;
         clientNames[client.id] = infoObject.playerName;
         client.join(roomName);
-        //Temporary removed. TS issues. Must be handled in custom object
-        ////client.number = 2;
-        ////client.playerName = infoObject.playerName;
-        //startGameInterval(roomName);
-        // console.log("Aftermath",io.sockets.adapter.rooms.get(roomName));
-        // console.log("Current rooms",io.sockets.adapter.rooms);
-        // console.log("Current rooms length",io.sockets.adapter.rooms.size);
-        // io.sockets.in(roomName)
-        //     .emit('init',{data: "game is here"});
-        //io.
-        // console.log("Client rooms",clientRooms);
-        // console.log("Client names",clientNames);
-
-        // previously was io.sockets.in....
-
-        // const res = getKeysByValue(clientRooms,roomName);
-        // console.log("clients in room", res);
-        //
-        // res.forEach((elem) => {
-        //     const playerNames: playerNames = {
-        //         yourName: clientNames[elem],
-        //         opponentName: clientNames[res.filter(sec => sec !== elem)[0]],
-        //     }
-        //
-        //     io.to(elem).emit("gameStart",JSON.stringify(playerNames));
-        // });
-
-        // io.in(roomName)
-        //     .emit('gameStart');
 
         state[roomName].players[client.id] = {
             name: infoObject.playerName,
             stack: 1000,
         }
 
-        //console.log("State",state[roomName]);
         prepareForGame(roomName);
     }
 
@@ -138,19 +101,23 @@ io.on('connection', (client: Socket) => {
         }
         return;
     }
+
+    function applyCheckCommand(roomName: string): void {
+        if(client.id == state[roomName].currentPlayerTurn) {
+            if(validateCommand(roomName,"check")) {
+                handleCommand(roomName,"check");
+            }
+        } else {
+            return;
+        }
+        return;
+    }
 });
 
 function prepareForGame(roomName: string): void {
 
     //is it safe to give opponents socket id???
     io.sockets.in(roomName).emit("prepare",JSON.stringify(state[roomName].players));
-
-    //check if mobx change state and render
-    // setTimeout(() => {
-    //     io.sockets.in(roomName).emit("changeStack",JSON.stringify(500));
-    // },5000);
-
-    //console.log("Players",state[roomName].players);
 
     setTimeout(startPlay,5000,roomName);
 }
@@ -159,8 +126,9 @@ function startPlay(roomName: string): void {
 
 
     state[roomName].currentStage = 0;
+    state[roomName].currentTable = [];
+    state[roomName].currentBank = 0;
 
-    //const objectToSend = { players: { role: undefined, bet: undefined, stack: undefined}, currentBank: 0,};
     const objectToSend = { players: {}, currentBank: 0};
     let isBBAssigned = false;
 
@@ -211,13 +179,6 @@ function startPlay(roomName: string): void {
 function startInterval(roomName: string): void {
 
     state[roomName].currentTime = TURN_TIME;
-    // state[roomName].currentInterval = setInterval(()=>{
-    //     if(state[roomName].currentTime === 0) {
-    //
-    //     }
-    //     io.in(roomName).emit("timerUpdate",{});
-    //     state[roomName].currentTime--;
-    // },1000);
 
     io.to(state[roomName].currentPlayerTurn).emit("turnOptions",JSON.stringify({actions: calculatePossibleActions(roomName)}));
     state[roomName].currentInterval = setInterval(timerInterval,1000,roomName);
@@ -275,6 +236,10 @@ function handleCommand(roomName: string, command: string): void {
         case "check":
             state[roomName].players[currentPlayer].madeTurn = true;
             clearInterval(state[roomName].currentInterval);
+
+            const checkMessage = createMessage("check",state[roomName].players[currentPlayer].name);
+            io.in(roomName).emit("checkMessage",checkMessage);
+
             checkGameState(roomName);
             break;
         case "call":
@@ -316,20 +281,105 @@ function handleCommand(roomName: string, command: string): void {
 
 function checkGameState(roomName: string): void {
 
+    let stillPlaying = false;
+
     Object.keys(state[roomName].players).map((player) => {
         if(state[roomName].players[player].madeTurn === true) {
-            if(state[roomName].players[player].bet < state[roomName].currentBet) {
+            console.log(state[roomName].players[player].name," ",state[roomName].players[player].madeTurn);
+            if(state[roomName].players[player].bet < state[roomName].currentBet && state[roomName].players[player].stack > 0) {
+                console.log(state[roomName].players[player].name," ",state[roomName].players[player].bet," ",state[roomName].currentBet);
                 state[roomName].currentPlayerTurn = player;
+                stillPlaying = true;
                 setTimeout(startInterval,3000,roomName);
+                return;
             }
         } else {
+            console.log(state[roomName].players[player].name," ",state[roomName].players[player].madeTurn)
             state[roomName].currentPlayerTurn = player;
+            stillPlaying = true;
             setTimeout(startInterval,3000,roomName);
+            return;
         }
     });
 
+    if(stillPlaying) return;
+
+    state[roomName].currentStage++;
+    handleStage(roomName);
     return;
 }
+
+function handleStage(roomName: string): void {
+
+    state[roomName].currentBet = 0;
+
+    const objectToSend = { players: {}};
+
+    Object.keys(state[roomName].players).map((player) => {
+        state[roomName].players[player].bet = 0;
+        state[roomName].players[player].madeTurn = false;
+        if(state[roomName].players[player].role === "sb") {
+            state[roomName].currentPlayerTurn = player;
+        }
+
+        objectToSend.players[player] = {};
+        objectToSend.players[player].bet = 0;
+    })
+
+
+
+    io.in(roomName).emit("stageChange",JSON.stringify(objectToSend));
+
+    switch(state[roomName].currentStage) {
+        case 1:
+            state[roomName].currentTable = state[roomName].currentTable.concat(pickCards(state[roomName].cardsInPlay,3));
+            state[roomName].cardsInPlay = state[roomName].cardsInPlay.concat(state[roomName].currentTable);
+            setTimeout(() => {
+                io.in(roomName).emit("tableUpdate", JSON.stringify(state[roomName].currentTable));
+                startInterval(roomName);
+            },3000);
+            return;
+        case 2:
+            state[roomName].currentTable = state[roomName].currentTable.concat(pickCards(state[roomName].cardsInPlay,1));
+            state[roomName].cardsInPlay = state[roomName].cardsInPlay.concat(state[roomName].currentTable);
+            setTimeout(() => {
+                io.in(roomName).emit("tableUpdate", JSON.stringify(state[roomName].currentTable));
+                startInterval(roomName);
+            },3000);
+            return;
+        case 3:
+            state[roomName].currentTable = state[roomName].currentTable.concat(pickCards(state[roomName].cardsInPlay,1));
+            state[roomName].cardsInPlay = state[roomName].cardsInPlay.concat(state[roomName].currentTable);
+            setTimeout(() => {
+                io.in(roomName).emit("tableUpdate", JSON.stringify(state[roomName].currentTable));
+                startInterval(roomName);
+            },3000);
+            return;
+        case 4:
+            const fetch = require('node-fetch');
+            const stringsForAPI: string[] = [];
+            Object.keys(state[roomName].players).map((player) => {
+                stringsForAPI.push(state[roomName].players[player].cards.join(","));
+            });
+
+            (async () => {
+                try {
+                    const apiString = makeAPIurl(state[roomName].currentTable.join(","), stringsForAPI);
+                    const response = await fetch(apiString);
+                    const result: apiResult = await response.json();
+                    handlePlayWinner(roomName,result,stringsForAPI);
+                } catch (error) {
+                    console.log(error);
+                }
+            })();
+            return;
+        default:
+            return;
+    }
+
+    return;
+}
+
 
 function calculatePossibleActions(roomName: string): Actions {
     const actions = {
@@ -384,7 +434,11 @@ function validateCommand(roomName: string,command: string, object?: object): boo
             }
             return false;
         case "check":
-            break;
+            if(state[roomName].players[currentPlayer].bet === state[roomName].currentBet &&
+                state[roomName].players[currentPlayer].madeTurn === false) {
+                return true;
+            }
+            return false;
         case "raise":
             break;
         case "allin":
@@ -400,6 +454,42 @@ function validateCommand(roomName: string,command: string, object?: object): boo
     }
 
     return false;
+}
+
+function handlePlayWinner(roomName: string, result: apiResult, playersCards: string[] ): void {
+    //TODO: handle specific case when both players have equal hands and the bank splits
+    if(result.winners.length === 2){
+
+    }
+
+    const playersCardsObj = {};
+    let winner: string;
+    Object.keys(state[roomName].players).map( (player) => {
+        if(state[roomName].players[player].cards.join(",") === result.winners[0].cards) {
+            winner = player;
+        }
+        playersCardsObj[player] = {};
+        playersCardsObj[player].cards = state[roomName].players[player].cards;
+    });
+
+    state[roomName].players[winner].stack += state[roomName].currentBank;
+    const combination = result.winners[0].result.replace("_"," ");
+    const message = "Player " + state[roomName].players[winner].name + " wins the bank: " + state[roomName].currentBank + " with " + combination;
+
+    const objToSend = {winner: { stack: 0, id: ""}, currentBank: state[roomName].currentBank, message: ""};
+    state[roomName].currentBank = 0;
+
+    objToSend.winner.stack = state[roomName].players[winner].stack;
+    objToSend.winner.id = winner;
+    objToSend.message = message;
+    io.in(roomName).emit("cardsReveal", JSON.stringify(playersCardsObj));
+    setTimeout(() => {
+        io.in(roomName).emit("playWinner", JSON.stringify(objToSend));
+        setTimeout(() => {
+            startPlay(roomName);
+        },5000);
+    },3000);
+    return;
 }
 
 io.listen(3001);

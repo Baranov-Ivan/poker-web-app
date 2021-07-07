@@ -23,6 +23,17 @@ export enum Role {
     SB = "sb",
 }
 
+export interface apiPlayer {
+    cards: string,
+    hand: string,
+    result: string,
+}
+
+export interface apiResult {
+    winners: apiPlayer[],
+    players: apiPlayer[],
+}
+
 // export enum Stage {
 //     Preflop = "Preflop",
 //     Flop = "Flop",
