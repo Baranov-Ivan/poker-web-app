@@ -2,54 +2,63 @@ import {observer} from "mobx-react-lite";
 import {useStore} from "../store/store";
 import {ControlPanel} from "./ControlPanel";
 
+import React from "react";
+import {GameScreenCanvas} from "./GameScreenCanvas";
+
 export const GameScreen = observer(() => {
-    const socket = useStore("Socket");
+    const controller = useStore("Controller");
+    const players = useStore("Players");
+    const game = useStore("Game");
 
     return <>
-        {socket.isPlaying === false && socket.isFirst &&
-            <h1>Prepare for game...</h1>
+        {!controller.isPlaying && controller.isFirst &&
+        <h1>Prepare for game...</h1>
         }
 
-        {socket.isPlaying &&
-            <p>Table: {socket.table.join(" ")}</p>
+        {controller.isPlaying &&
+        <p>Table: {game.table.join(" ")}</p>
         }
 
-        {socket.currentBank > 0 &&
-            <p>Bank: {socket.currentBank}</p>
+        {game.currentBank > 0 &&
+        <p>Bank: {game.currentBank}</p>
         }
 
-        {socket.message.length > 0 &&
-            <p>{socket.message}</p>
+        {game.message.length > 0 &&
+        <p>{game.message}</p>
         }
+
+        <GameScreenCanvas/>
+
+        {/*THIS CODE BELOW WILL BE OBSOLETE AFTER COMPLETING CANVAS*/}
         <div className={"players-container"}>
             <div className={"opponent"}>
-                {socket.opponentTimer && <p>Turn time: {socket.turnTime}</p>}
-                <p>Opponent: {socket.opponent.name}</p>
-                {socket.opponent.role &&
-                    <p>Role: {socket.opponent.role}</p>
+                {controller.opponentTimer && <p>Turn time: {controller.turnTime}</p>}
+                <p>Opponent: {players.players[players.opponentId].name}</p>
+                {players.players[players.opponentId].role &&
+                <p>Role: {players.players[players.opponentId].role}</p>
                 }
-                <p>Stack: {socket.opponent.stack}</p>
-                {socket.opponent.bet && socket.opponent.bet >= 0 &&
-                    <p>Bet: {socket.opponent.bet}</p>
+                <p>Stack: {players.players[players.opponentId].stack}</p>
+                {players.players[players.opponentId].bet && players.players[players.opponentId].bet! >= 0 &&
+                <p>Bet: {players.players[players.opponentId].bet}</p>
                 }
-                {socket.opponent.cards && socket.opponent.cards.length !== 0 &&
-                    <p>Cards: {socket.opponent.cards[0]} {socket.opponent.cards[1]}</p>
+                {players.players[players.opponentId].cards && players.players[players.opponentId].cards?.length !== 0 &&
+                <p>Cards: {players.players[players.opponentId].cards![0]} {players.players[players.opponentId].cards![1]}</p>
                 }
             </div>
             <div className={"player"}>
-                {socket.playerTimer && <p>Turn time: {socket.turnTime}</p>}
-                <p>You: {socket.player.name}</p>
-                {socket.player.role &&
-                    <p>Role: {socket.player.role}</p>
+                {controller.playerTimer && <p>Turn time: {controller.turnTime}</p>}
+                <p>You: {players.players[players.clientId].name}</p>
+                {players.players[players.clientId].role &&
+                <p>Role: {players.players[players.clientId].role}</p>
                 }
-                <p>Stack: {socket.player.stack}</p>
-                {socket.player.bet && socket.player.bet >= 0 &&
-                    <p>Bet: {socket.player.bet}</p>
+                <p>Stack: {players.players[players.clientId].stack}</p>
+                {players.players[players.clientId].bet && players.players[players.clientId].bet! >= 0 &&
+                <p>Bet: {players.players[players.clientId].bet}</p>
                 }
-                {socket.player.cards && socket.player.cards.length !== 0 &&
-                    <p>Cards: {socket.player.cards[0]} {socket.player.cards[1]}</p>
+                {players.players[players.clientId].cards && players.players[players.clientId].cards?.length !== 0 &&
+                <p>Cards: {players.players[players.clientId].cards![0]} {players.players[players.clientId].cards![1]}</p>
                 }
-                {socket.isCurrentPlayer && <ControlPanel/>}
+                {controller.isCurrentPlayer && <ControlPanel/>}
             </div>
         </div>
     </>

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans&display=swap');
+
 .players-container {
     margin: 0 auto;
     width: 40%;
@@ -11,4 +13,27 @@
 
 .opponent {
     /*align-self: flex-start;*/
+}
+
+.modal {
+    position: fixed;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.25);
+}
+
+.modal-content {
+    background-color: white;
+    position: absolute;
+    top: 20%;
+    left: 30%;
+    width: 40%;
+    padding: 20px;
+    border-radius: 5px;
+    border: 2px solid black;
+}
+
+canvas {
+    border: 2px solid black;
 }

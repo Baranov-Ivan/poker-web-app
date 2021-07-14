@@ -5,17 +5,11 @@ export interface JoinState {
 
 export interface Player {
     name: string,
-    //socketId: string,
-    cards?: string[],
-    bet?: number,
+    cards: string[],
+    bet: number,
     role?: Role,
-    madeTurn?: boolean,
+    madeTurn: boolean,
     stack: number,
-}
-
-export interface playerNames {
-    yourName: string,
-    opponentName: string,
 }
 
 export enum Role {
@@ -34,27 +28,17 @@ export interface apiResult {
     players: apiPlayer[],
 }
 
-// export enum Stage {
-//     Preflop = "Preflop",
-//     Flop = "Flop",
-//     Turn = "Turn",
-//     River = "River",
-//     Showdown = "Showdown",
-// }
-
 export interface GameState {
     currentInterval?: NodeJS.Timeout,
     currentTime?: number,
-    currentBank?: number,
-    currentBet?: number,
-    currentPlayerTurn?: string, //name or id
-    //currentStage?: Stage, // maybe not needed
-    currentStage?: number,
-    cardsInPlay?: string[],
-    currentTable?: string[],
-    roomId?: string, // is it necessary??
-    //players?: Player[],
-    players?: Record<string,Player>,
+    currentBank: number,
+    currentBet: number,
+    currentPlayerTurn: string,
+    currentStage: number,
+    cardsInPlay: string[],
+    currentTable: string[],
+    allinCondition: boolean,
+    players: Record<string,Player>,
 }
 
 export interface Actions  {
@@ -63,4 +47,36 @@ export interface Actions  {
     check: boolean,
     fold: boolean,
     allin: boolean,
+    raiseMaxLim?: number,
+    raiseMinLim?: number,
+}
+
+export interface RaiseInfo {
+    roomName: string,
+    value: string,
+}
+
+export interface FoldPayload {
+    players: Record<string, {stack: number}>,
+    message: string,
+}
+
+export interface BetPayload {
+    bank: number,
+    message: string,
+    player: {
+        id: string,
+        stack: number,
+        bet: number,
+    }
+}
+
+export interface StagePayload {
+    players: Record<string, Partial<Player>>;
+}
+
+export interface EndgamePayload {
+    players: Record<string, number>,
+    bank: number,
+    message: string,
 }

@@ -9,5 +9,3 @@ export const SMALL_BLIND = 20;
 export const BIG_BLIND = 40;
 
 export const TURN_TIME = 20;
-
-export const STAGES = ["PREFLOP","FLOP","TURN","RIVER","SHOWDOWN"];

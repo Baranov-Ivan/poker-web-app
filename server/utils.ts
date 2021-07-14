@@ -10,7 +10,7 @@ export function makeId(length: number): string {
     return result;
 }
 
-export function getKeysByValue(object: object, value: string): string[] {
+export function getKeysByValue(object: {[index: string]: any} , value: string): string[] {
     return Object.keys(object).filter(key => object[key] === value);
 }
 
@@ -25,7 +25,7 @@ export function pickCards(cardsInPlay: string[], numOfCards: number): string[] {
     return cards;
 };
 
-function getRandomInt(min, max) {
+function getRandomInt(min: number, max: number) {
     return Math.floor(Math.random() * (max - min)) + min;
 }
 

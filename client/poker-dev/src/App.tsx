@@ -1,16 +1,14 @@
 import React from 'react';
-import logo from './logo.svg';
 import './styles/App.css';
 import './styles/poker-styles.css';
-import {HomeScreen} from "./components/HomeScreen";
-import {PageControl} from "./components/PageControl";
+import {Router} from "./components/Router";
 
 function App() {
-  return (
-    <div className="App">
-      <PageControl/>
-    </div>
-  );
+    return (
+        <div className="App">
+            <Router/>
+        </div>
+    );
 }
 
 export default App;

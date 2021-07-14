@@ -1,13 +1,19 @@
 import {Server, Socket} from "socket.io";
-import {getKeysByValue, makeAPIurl, makeId, pickCards} from "./utils";
-import {Actions, apiResult, GameState, JoinState, playerNames, Role} from "./types";
+import {makeAPIurl, makeId, pickCards} from "./utils";
+import {
+    Actions,
+    apiResult, BetPayload, EndgamePayload,
+    FoldPayload,
+    GameState,
+    JoinState, Player,
+    RaiseInfo,
+    Role, StagePayload
+} from "./types";
 import {createServer} from "http";
 import {BIG_BLIND, SMALL_BLIND, TURN_TIME} from "./constants";
 
 
 const state: Record<string,GameState> = {};
-const clientRooms: Record<string,string> = {};
-const clientNames: Record<string, string> = {};
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
@@ -28,20 +34,22 @@ io.on('connection', (client: Socket) => {
     //Need to unify under one command handle?
     client.on("foldCommand", applyFoldCommand);
     client.on("callCommand", applyCallCommand);
-    client.on("checkCommand", applyCheckCommand)
+    client.on("checkCommand", applyCheckCommand);
+    client.on("allinCommand", applyAllinCommand);
+    client.on("raiseCommand", applyRaiseCommand);
 
     function handleNewGame(playerName: string): void {
         let roomName = makeId(5);
-        clientRooms[client.id] = roomName;
 
         client.join(roomName);
 
-        clientNames[client.id] = playerName;
-
-        const gameState: GameState = { players: {}, cardsInPlay: [],};
+        const gameState: GameState = { players: {}, cardsInPlay: [], currentBank: 0, currentBet: 0, allinCondition: false, currentStage: 0, currentTable: [], currentPlayerTurn: ""};
         gameState.players[client.id] = {
             name: playerName,
             stack: 1000,
+            madeTurn: false,
+            cards: [],
+            bet: 0,
         };
         state[roomName] = gameState;
 
@@ -61,20 +69,21 @@ io.on('connection', (client: Socket) => {
         }
 
         if(numClients === 0) {
-            //client.emit("unknownCode");
+            client.emit("unknownCode");
             return;
         } else if (numClients > 1) {
-            //client.emit("tooManyPlayers");
+            client.emit("tooManyPlayers");
             return;
         }
 
-        clientRooms[client.id] = roomName;
-        clientNames[client.id] = infoObject.playerName;
         client.join(roomName);
 
         state[roomName].players[client.id] = {
             name: infoObject.playerName,
             stack: 1000,
+            madeTurn: false,
+            cards: [],
+            bet: 0,
         }
 
         prepareForGame(roomName);
@@ -112,65 +121,111 @@ io.on('connection', (client: Socket) => {
         }
         return;
     }
+
+    function applyAllinCommand(roomName: string): void {
+        if(client.id == state[roomName].currentPlayerTurn) {
+            if(validateCommand(roomName,"allin")) {
+                handleCommand(roomName,"allin");
+            }
+        } else {
+            return;
+        }
+        return;
+    }
+
+    function applyRaiseCommand(payload: string): void {
+        const object: RaiseInfo = JSON.parse(payload);
+        if(client.id == state[object.roomName].currentPlayerTurn) {
+            if(validateCommand(object.roomName,"raise",object.value)) {
+                handleCommand(object.roomName,"raise",parseInt(object.value));
+            }
+        } else {
+            return;
+        }
+        return;
+    }
 });
 
 function prepareForGame(roomName: string): void {
 
-    //is it safe to give opponents socket id???
-    io.sockets.in(roomName).emit("prepare",JSON.stringify(state[roomName].players));
+    io.sockets.in(roomName).emit("preparePlayers",JSON.stringify(state[roomName].players));
+    io.sockets.in(roomName).emit("prepareScreen");
 
-    setTimeout(startPlay,5000,roomName);
+
+    setTimeout(startPlay,2000,roomName);
 }
 
 function startPlay(roomName: string): void {
 
+    const looser = doesGameContinue(roomName);
+
+    if(looser.length !==  0) {
+        endGame(roomName,looser);
+        return;
+    }
 
     state[roomName].currentStage = 0;
     state[roomName].currentTable = [];
     state[roomName].currentBank = 0;
+    state[roomName].allinCondition = false; // needed?
 
-    const objectToSend = { players: {}, currentBank: 0};
+    const objectPlayersToSend: Record<string, Partial<Player>> = {};
     let isBBAssigned = false;
 
-    Object.keys(state[roomName].players).map( (player, index) => {
 
-        //TODO: WINNING/LOOSING CONDITION
-        // if(state[roomName].players[player].stack === 0) {
-        //     io.to(player).emit("loose");
-        //     return;
-        // }
+    Object.keys(state[roomName].players).map((player) => {
 
-        state[roomName].players[player].cards = pickCards(state[roomName].cardsInPlay,2);
-        io.to(player).emit("getCards",JSON.stringify(state[roomName].players[player].cards));
+        state[roomName].players[player].cards = pickCards(state[roomName].cardsInPlay, 2);
+        io.to(player).emit("getCards", JSON.stringify(state[roomName].players[player].cards));
         state[roomName].cardsInPlay = state[roomName].cardsInPlay.concat(state[roomName].players[player].cards);
 
         state[roomName].players[player].madeTurn = false;
 
-        //TODO: Rotate roles between plays
-        //if(state[roomName].currentBet !== BIG_BLIND) {
-        if(state[roomName].players[player].role !== Role.BB && isBBAssigned === false) {
-            state[roomName].players[player].role = Role.BB;
-            state[roomName].players[player].bet = BIG_BLIND;
-            state[roomName].players[player].stack -= BIG_BLIND;
-            state[roomName].currentBet = BIG_BLIND;
+        if (state[roomName].players[player].role !== Role.BB && !isBBAssigned) {
+            if (state[roomName].players[player].stack < BIG_BLIND) {
+                state[roomName].players[player].role = Role.BB;
+                state[roomName].players[player].bet = state[roomName].players[player].stack;
+                state[roomName].players[player].stack = 0;
+                state[roomName].currentBank += state[roomName].players[player].bet;
+                state[roomName].allinCondition = true;
+                state[roomName].players[player].madeTurn = true;
+            } else {
+                state[roomName].players[player].role = Role.BB;
+                state[roomName].players[player].bet = BIG_BLIND;
+                state[roomName].players[player].stack -= BIG_BLIND;
+                state[roomName].currentBet = BIG_BLIND;
+            }
             isBBAssigned = true;
         } else {
-            state[roomName].players[player].role = Role.SB;
-            state[roomName].players[player].bet = SMALL_BLIND;
-            state[roomName].players[player].stack -= SMALL_BLIND;
-            state[roomName].currentBank = BIG_BLIND + SMALL_BLIND;
-            state[roomName].currentPlayerTurn = player;
+            if (state[roomName].players[player].stack < SMALL_BLIND) {
+                state[roomName].players[player].role = Role.SB;
+                state[roomName].players[player].bet = state[roomName].players[player].stack;
+                state[roomName].players[player].stack = 0;
+                state[roomName].currentBank += state[roomName].players[player].bet;
+                state[roomName].allinCondition = true;
+                state[roomName].players[player].madeTurn = true;
+                //make another player currentPlayerTurn
+                const anotherPlayer = Object.keys(state[roomName].players).find((anotherPlayer) => anotherPlayer !== player);
+                if(anotherPlayer != null) state[roomName].currentPlayerTurn = anotherPlayer;
+            } else {
+                state[roomName].players[player].role = Role.SB;
+                state[roomName].players[player].bet = SMALL_BLIND;
+                state[roomName].players[player].stack -= SMALL_BLIND;
+                state[roomName].currentBank = BIG_BLIND + SMALL_BLIND;
+                state[roomName].currentPlayerTurn = player;
+            }
         }
 
-        objectToSend.players[player] = {};
-        objectToSend.players[player].role = state[roomName].players[player].role;
-        objectToSend.players[player].bet = state[roomName].players[player].bet;
-        objectToSend.players[player].stack = state[roomName].players[player].stack;
-        objectToSend.currentBank = state[roomName].currentBank;
+        objectPlayersToSend[player] = {role: state[roomName].players[player].role,
+            bet: state[roomName].players[player].bet,
+            stack: state[roomName].players[player].stack};
     });
 
+    const objectBankToSend = {bank: state[roomName].currentBank};
 
-    io.in(roomName).emit("infoUpdate",JSON.stringify(objectToSend));
+    io.in(roomName).emit("tableUpdate", JSON.stringify(state[roomName].currentTable));
+    io.in(roomName).emit("bankUpdate",JSON.stringify(objectBankToSend));
+    io.in(roomName).emit("playersStartUpdate",JSON.stringify(objectPlayersToSend));
     startInterval(roomName);
 
 }
@@ -181,14 +236,20 @@ function startInterval(roomName: string): void {
     state[roomName].currentTime = TURN_TIME;
 
     io.to(state[roomName].currentPlayerTurn).emit("turnOptions",JSON.stringify({actions: calculatePossibleActions(roomName)}));
+    timerInterval(roomName);
     state[roomName].currentInterval = setInterval(timerInterval,1000,roomName);
 
 }
 
 function timerInterval(roomName: string): void {
 
+    if(state[roomName].currentInterval == null || state[roomName].currentTime == null) {
+        return;
+    }
+
     if(state[roomName].currentTime === 0) {
-        clearInterval(state[roomName].currentInterval);
+
+        clearInterval(state[roomName].currentInterval!);
         if(state[roomName].players[state[roomName].currentPlayerTurn].bet < state[roomName].currentBet) {
             handleCommand(roomName,"fold");
         } else {
@@ -198,30 +259,30 @@ function timerInterval(roomName: string): void {
     }
 
     io.in(roomName).emit("timerUpdate",JSON.stringify({currentPlayer: state[roomName].currentPlayerTurn, currentTime: state[roomName].currentTime}));
-    state[roomName].currentTime--;
+    state[roomName].currentTime!--;
 }
 
-function handleCommand(roomName: string, command: string): void {
+function handleCommand(roomName: string, command: string, value?: number): void {
     const currentPlayer = state[roomName].currentPlayerTurn;
+
 
     switch (command) {
         case "fold":
-            const objectFoldToSend = { players: {}, message: ""};
+            const objectFoldToSend: FoldPayload = { players: {}, message: ""};
             Object.keys(state[roomName].players).map((player) => {
-                objectFoldToSend.players[player] = {};
 
                 if(currentPlayer !== player) {
                     state[roomName].players[player].stack += state[roomName].currentBank;
                 }
 
-                objectFoldToSend.players[player].stack = state[roomName].players[player].stack;
+                objectFoldToSend.players[player] = {stack: state[roomName].players[player].stack};
             })
 
             state[roomName].currentBank = 0;
             state[roomName].cardsInPlay = [];
             state[roomName].currentStage = 0;
 
-            clearInterval(state[roomName].currentInterval);
+            if(state[roomName].currentInterval != null) clearInterval(state[roomName].currentInterval!);
 
             const foldMessage = createMessage("fold",state[roomName].players[currentPlayer].name);
             objectFoldToSend.message = foldMessage;
@@ -235,7 +296,7 @@ function handleCommand(roomName: string, command: string): void {
 
         case "check":
             state[roomName].players[currentPlayer].madeTurn = true;
-            clearInterval(state[roomName].currentInterval);
+            if(state[roomName].currentInterval != null) clearInterval(state[roomName].currentInterval!);
 
             const checkMessage = createMessage("check",state[roomName].players[currentPlayer].name);
             io.in(roomName).emit("checkMessage",checkMessage);
@@ -249,10 +310,10 @@ function handleCommand(roomName: string, command: string): void {
             state[roomName].players[currentPlayer].bet = state[roomName].currentBet;
             state[roomName].players[currentPlayer].stack -= diff;
 
-            clearInterval(state[roomName].currentInterval);
+            if(state[roomName].currentInterval != null) clearInterval(state[roomName].currentInterval!);
 
             const callMessage = createMessage("call",state[roomName].players[currentPlayer].name);
-            const objectCallToSend = {
+            const objectCallToSend: BetPayload = {
                 bank: state[roomName].currentBank,
                 message: callMessage,
                 player: {
@@ -267,12 +328,64 @@ function handleCommand(roomName: string, command: string): void {
             checkGameState(roomName);
             break;
         case "raise":
-            state[roomName].players[currentPlayer].madeTurn = true;
 
+            if(value == null) return;
+
+            state[roomName].players[currentPlayer].madeTurn = true;
+            state[roomName].currentBank += value;
+            state[roomName].players[currentPlayer].bet += value;
+            state[roomName].currentBet = state[roomName].players[currentPlayer].bet;
+            state[roomName].players[currentPlayer].stack -= value;
+
+            if(state[roomName].players[currentPlayer].stack === 0) {
+                state[roomName].allinCondition = true;
+            }
+
+            if(state[roomName].currentInterval != null) clearInterval(state[roomName].currentInterval!);
+
+            const raiseMessage = createMessage("raise",state[roomName].players[currentPlayer].name, state[roomName].currentBet);
+            const objectRaiseToSend: BetPayload = {
+                bank: state[roomName].currentBank,
+                message: raiseMessage,
+                player: {
+                    id: currentPlayer,
+                    stack: state[roomName].players[currentPlayer].stack,
+                    bet: state[roomName].players[currentPlayer].bet,
+                }
+            }
+
+            io.in(roomName).emit("raiseMessage",JSON.stringify(objectRaiseToSend));
+
+            checkGameState(roomName);
             break;
         case "allin":
             state[roomName].players[currentPlayer].madeTurn = true;
+            state[roomName].players[currentPlayer].bet += state[roomName].players[currentPlayer].stack;
+            if(state[roomName].currentBet < state[roomName].players[currentPlayer].bet) {
+                state[roomName].currentBet = state[roomName].players[currentPlayer].bet;
+            }
+            state[roomName].currentBank += state[roomName].players[currentPlayer].stack;
+            // not handle currentBet field, because all-in is special case???
+            state[roomName].players[currentPlayer].stack = 0;
+            state[roomName].allinCondition = true;
 
+            if(state[roomName].currentInterval != null) clearInterval(state[roomName].currentInterval!);
+
+            const allinMessage = createMessage("allin",state[roomName].players[currentPlayer].name);
+
+            const objectAllinToSend: BetPayload = {
+                bank: state[roomName].currentBank,
+                message: allinMessage,
+                player: {
+                    id: currentPlayer,
+                    stack: state[roomName].players[currentPlayer].stack,
+                    bet: state[roomName].players[currentPlayer].bet,
+                }
+            }
+
+            io.in(roomName).emit("allinMessage",JSON.stringify(objectAllinToSend));
+
+            checkGameState(roomName);
             break;
         default:
             break;
@@ -284,17 +397,14 @@ function checkGameState(roomName: string): void {
     let stillPlaying = false;
 
     Object.keys(state[roomName].players).map((player) => {
-        if(state[roomName].players[player].madeTurn === true) {
-            console.log(state[roomName].players[player].name," ",state[roomName].players[player].madeTurn);
+        if(state[roomName].players[player].madeTurn) {
             if(state[roomName].players[player].bet < state[roomName].currentBet && state[roomName].players[player].stack > 0) {
-                console.log(state[roomName].players[player].name," ",state[roomName].players[player].bet," ",state[roomName].currentBet);
                 state[roomName].currentPlayerTurn = player;
                 stillPlaying = true;
                 setTimeout(startInterval,3000,roomName);
                 return;
             }
         } else {
-            console.log(state[roomName].players[player].name," ",state[roomName].players[player].madeTurn)
             state[roomName].currentPlayerTurn = player;
             stillPlaying = true;
             setTimeout(startInterval,3000,roomName);
@@ -305,6 +415,14 @@ function checkGameState(roomName: string): void {
     if(stillPlaying) return;
 
     state[roomName].currentStage++;
+
+    //handling of all-in state
+    if(state[roomName].allinCondition) {
+        io.in(roomName).emit("showtime");
+        setTimeout(() => handleAllinState(roomName), 3000);
+        return;
+    }
+
     handleStage(roomName);
     return;
 }
@@ -313,7 +431,7 @@ function handleStage(roomName: string): void {
 
     state[roomName].currentBet = 0;
 
-    const objectToSend = { players: {}};
+    const objectToSend: StagePayload = { players: {}};
 
     Object.keys(state[roomName].players).map((player) => {
         state[roomName].players[player].bet = 0;
@@ -322,8 +440,7 @@ function handleStage(roomName: string): void {
             state[roomName].currentPlayerTurn = player;
         }
 
-        objectToSend.players[player] = {};
-        objectToSend.players[player].bet = 0;
+        objectToSend.players[player] = {bet: 0};
     })
 
 
@@ -340,13 +457,6 @@ function handleStage(roomName: string): void {
             },3000);
             return;
         case 2:
-            state[roomName].currentTable = state[roomName].currentTable.concat(pickCards(state[roomName].cardsInPlay,1));
-            state[roomName].cardsInPlay = state[roomName].cardsInPlay.concat(state[roomName].currentTable);
-            setTimeout(() => {
-                io.in(roomName).emit("tableUpdate", JSON.stringify(state[roomName].currentTable));
-                startInterval(roomName);
-            },3000);
-            return;
         case 3:
             state[roomName].currentTable = state[roomName].currentTable.concat(pickCards(state[roomName].cardsInPlay,1));
             state[roomName].cardsInPlay = state[roomName].cardsInPlay.concat(state[roomName].currentTable);
@@ -367,7 +477,7 @@ function handleStage(roomName: string): void {
                     const apiString = makeAPIurl(state[roomName].currentTable.join(","), stringsForAPI);
                     const response = await fetch(apiString);
                     const result: apiResult = await response.json();
-                    handlePlayWinner(roomName,result,stringsForAPI);
+                    handlePlayWinner(roomName, result);
                 } catch (error) {
                     console.log(error);
                 }
@@ -376,10 +486,53 @@ function handleStage(roomName: string): void {
         default:
             return;
     }
-
-    return;
 }
 
+
+function handleAllinState(roomName: string): void {
+    switch(state[roomName].currentStage) {
+        case 1:
+            state[roomName].currentTable = state[roomName].currentTable.concat(pickCards(state[roomName].cardsInPlay,3));
+            state[roomName].cardsInPlay = state[roomName].cardsInPlay.concat(state[roomName].currentTable);
+            io.in(roomName).emit("tableUpdate", JSON.stringify(state[roomName].currentTable));
+            state[roomName].currentStage++;
+            setTimeout(() => {
+                handleAllinState(roomName);
+            },1000);
+            return;
+        case 2:
+        case 3:
+            state[roomName].currentTable = state[roomName].currentTable.concat(pickCards(state[roomName].cardsInPlay,1));
+            state[roomName].cardsInPlay = state[roomName].cardsInPlay.concat(state[roomName].currentTable);
+            io.in(roomName).emit("tableUpdate", JSON.stringify(state[roomName].currentTable));
+            state[roomName].currentStage++;
+            setTimeout(() => {
+                handleAllinState(roomName);
+            },1000);
+            return;
+        case 4:
+            const fetch = require('node-fetch');
+            const stringsForAPI: string[] = [];
+            Object.keys(state[roomName].players).map((player) => {
+                stringsForAPI.push(state[roomName].players[player].cards.join(","));
+            });
+
+            (async () => {
+                try {
+                    const apiString = makeAPIurl(state[roomName].currentTable.join(","), stringsForAPI);
+                    const response = await fetch(apiString);
+                    const result: apiResult = await response.json();
+                    //handlePlayWinner(roomName,result,stringsForAPI);
+                    handlePlayWinner(roomName, result);
+                } catch (error) {
+                    console.log(error);
+                }
+            })();
+            return;
+        default:
+            return;
+    }
+}
 
 function calculatePossibleActions(roomName: string): Actions {
     const actions = {
@@ -388,11 +541,12 @@ function calculatePossibleActions(roomName: string): Actions {
         check: false,
         fold: false,
         allin: false,
+        raiseMaxLim: -1,
+        raiseMinLim: -1,
     }
 
     const playerBet = state[roomName].players[state[roomName].currentPlayerTurn].bet;
     const playerStack = state[roomName].players[state[roomName].currentPlayerTurn].stack;
-    const currentBank = state[roomName].currentBank;
     const currentBet = state[roomName].currentBet;
 
     if(playerBet === currentBet) {
@@ -405,6 +559,8 @@ function calculatePossibleActions(roomName: string): Actions {
         actions.allin = true;
     } else {
         actions.raise = true;
+        actions.raiseMaxLim = playerStack;
+        actions.raiseMinLim = currentBet - playerBet + 1;
         actions.allin = true;
     }
 
@@ -419,68 +575,81 @@ function createMessage(command: string, playerName: string, betValue?: number): 
     if(betValue == null) {
         return "Player " + playerName + " " + command;
     } else {
-        return "Player " + playerName + " " + command + " " + betValue;
+        return "Player " + playerName + " " + command + " to " + betValue;
     }
 }
 
-function validateCommand(roomName: string,command: string, object?: object): boolean {
+function validateCommand(roomName: string,command: string, value?: string): boolean {
 
     const currentPlayer = state[roomName].currentPlayerTurn;
 
     switch(command) {
         case "fold":
-            if(state[roomName].players[currentPlayer].bet < state[roomName].currentBet) {
-                return true;
-            }
-            return false;
+            return state[roomName].players[currentPlayer].bet < state[roomName].currentBet;
+
         case "check":
-            if(state[roomName].players[currentPlayer].bet === state[roomName].currentBet &&
-                state[roomName].players[currentPlayer].madeTurn === false) {
-                return true;
-            }
-            return false;
+            return state[roomName].players[currentPlayer].bet === state[roomName].currentBet &&
+                !state[roomName].players[currentPlayer].madeTurn;
+
         case "raise":
-            break;
+
+            if(value == null) return false;
+
+            const intValue = parseInt(value);
+            return intValue <= state[roomName].players[currentPlayer].stack ||
+                intValue > (state[roomName].currentBet - state[roomName].players[currentPlayer].bet);
+
         case "allin":
-            break;
+            return state[roomName].players[currentPlayer].stack > 0;
+
         case "call":
-            if(state[roomName].players[currentPlayer].stack > state[roomName].currentBet - state[roomName].players[currentPlayer].bet &&
-                state[roomName].players[currentPlayer].bet < state[roomName].currentBet) {
-                return true;
-            }
-            break;
+            return state[roomName].players[currentPlayer].stack + state[roomName].players[currentPlayer].bet >= state[roomName].currentBet - state[roomName].players[currentPlayer].bet &&
+                state[roomName].players[currentPlayer].bet < state[roomName].currentBet;
+
         default:
             return false;
     }
-
-    return false;
 }
 
-function handlePlayWinner(roomName: string, result: apiResult, playersCards: string[] ): void {
+function handlePlayWinner(roomName: string, result: apiResult): void {
     //TODO: handle specific case when both players have equal hands and the bank splits
     if(result.winners.length === 2){
 
     }
 
-    const playersCardsObj = {};
-    let winner: string;
+    const playersCardsObj: Record<string, string[]> = {};
+    let winner: string = "";
+    let loser: string = "";
     Object.keys(state[roomName].players).map( (player) => {
         if(state[roomName].players[player].cards.join(",") === result.winners[0].cards) {
             winner = player;
+        } else {
+            loser = player;
         }
-        playersCardsObj[player] = {};
-        playersCardsObj[player].cards = state[roomName].players[player].cards;
+        playersCardsObj[player] = state[roomName].players[player].cards;
     });
 
-    state[roomName].players[winner].stack += state[roomName].currentBank;
-    const combination = result.winners[0].result.replace("_"," ");
-    const message = "Player " + state[roomName].players[winner].name + " wins the bank: " + state[roomName].currentBank + " with " + combination;
+    const combination = result.winners[0].result.replace(/_/g," ");
+    const message = "Player " + state[roomName].players[winner].name + " wins the bank" + " with " + combination;
 
-    const objToSend = {winner: { stack: 0, id: ""}, currentBank: state[roomName].currentBank, message: ""};
+    const objToSend: EndgamePayload = { players: {}, bank: state[roomName].currentBank, message: ""};
+
+    if(state[roomName].allinCondition) {
+
+        if(state[roomName].players[winner].bet >= state[roomName].players[loser].bet) {
+            state[roomName].players[winner].stack += state[roomName].currentBank;
+        } else {
+            state[roomName].players[winner].stack = state[roomName].players[winner].bet * 2;
+            state[roomName].players[loser].stack += state[roomName].currentBank - (state[roomName].players[winner].bet * 2);
+        }
+    } else {
+        state[roomName].players[winner].stack += state[roomName].currentBank;
+    }
+
     state[roomName].currentBank = 0;
 
-    objToSend.winner.stack = state[roomName].players[winner].stack;
-    objToSend.winner.id = winner;
+    objToSend.players[winner] = state[roomName].players[winner].stack;
+    objToSend.players[loser] = state[roomName].players[loser].stack;
     objToSend.message = message;
     io.in(roomName).emit("cardsReveal", JSON.stringify(playersCardsObj));
     setTimeout(() => {
@@ -489,6 +658,24 @@ function handlePlayWinner(roomName: string, result: apiResult, playersCards: str
             startPlay(roomName);
         },5000);
     },3000);
+    return;
+}
+
+function doesGameContinue(roomName: string): string {
+    let looser = "";
+    Object.keys(state[roomName].players).map( (player) => {
+        if(state[roomName].players[player].stack === 0) {
+            looser = player;
+        }
+    });
+
+    return looser;
+}
+
+function endGame(roomName: string, looser: string): void {
+    io.in(roomName).emit("endGame",looser);
+    io.in(roomName).emit("endPlayersGame");
+    delete state[roomName];
     return;
 }
 
