@@ -1,17 +1,17 @@
 import React from "react";
-import {observer} from "mobx-react-lite";
-import {useStore} from "../store/store";
+import { observer } from "mobx-react-lite";
+import { useStore } from "../store/store";
 
 interface PopUpProps {
-    message: string,
-    type: string,
+    message: string;
+    type: string;
 }
 
-export const PopUp = observer(({message, type}: PopUpProps) =>  {
+export const PopUp = observer(({ message, type }: PopUpProps) => {
     const controller = useStore("Controller");
 
     const handleOkClick = (): void => {
-        switch(type) {
+        switch (type) {
             case "name":
                 controller.toggleEmptyNameMessage(false);
                 return;
@@ -27,13 +27,15 @@ export const PopUp = observer(({message, type}: PopUpProps) =>  {
             default:
                 return;
         }
-    }
+    };
 
     return (
         <div className={"modal"}>
             <div className={"modal-content"}>
                 <p>{message}</p>
-                <button onClick={handleOkClick}>Ok</button>
+                <button className={"modal-btn"} onClick={handleOkClick}>
+                    Ok
+                </button>
             </div>
         </div>
     );

@@ -1,8 +1,8 @@
 import { createContext } from "../utils/storeUtils";
-import {Socket} from "./socket";
-import {Controller} from "./controller";
-import {Game} from "./game";
-import {Players} from "./players";
+import { Socket } from "./socket";
+import { Controller } from "./controller";
+import { Game } from "./game";
+import { Players } from "./players";
 
 const socket = new Socket();
 

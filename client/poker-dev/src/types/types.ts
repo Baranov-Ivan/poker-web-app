@@ -6,58 +6,57 @@ export enum Page {
 }
 
 export interface Player {
-    name?: string,
-    socketId?: string,
-    cards?: string[],
-    stack?: number,
-    bet?: number,
-    role?: string,
+    name?: string;
+    socketId?: string;
+    cards?: string[];
+    stack?: number;
+    bet?: number;
+    role?: string;
 }
 
-export interface Actions  {
-    call: boolean,
-    raise: boolean,
-    check: boolean,
-    fold: boolean,
-    allin: boolean,
-    raiseMaxLim: number,
-    raiseMinLim: number,
+export interface Actions {
+    call: boolean;
+    raise: boolean;
+    check: boolean;
+    fold: boolean;
+    allin: boolean;
+    raiseMaxLim: number;
+    raiseMinLim: number;
 }
 
 export interface RaiseInfo {
-    roomName: string,
-    value: string,
+    roomName: string;
+    value: string;
 }
 
 export interface FoldPayload {
-    players: Record<string, {stack: number}>,
-    message: string,
+    players: Record<string, { stack: number }>;
+    message: string;
 }
 
 export interface BetPayload {
-    bank: number,
-    message: string,
+    bank: number;
+    message: string;
     player: {
-        id: string,
-        stack: number,
-        bet: number,
-    }
+        id: string;
+        stack: number;
+        bet: number;
+    };
 }
 
 export interface StagePayload {
     players: Record<string, Player>;
 }
 
-
 export interface EndgamePayload {
     players: Record<string, number>;
-    bank: number,
-    message: string,
+    bank: number;
+    message: string;
 }
 
 export interface TimerPayload {
-    currentPlayer: string,
-    currentTime: number,
+    currentPlayer: string;
+    currentTime: number;
 }
 
 export enum Role {

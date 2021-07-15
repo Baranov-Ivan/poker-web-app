@@ -1,7 +1,12 @@
-import {EndgamePayload, FoldPayload, Player, StagePayload, BetPayload} from "../types/types";
-import {Socket} from "./socket";
-import {action, makeAutoObservable} from "mobx";
-
+import {
+    EndgamePayload,
+    FoldPayload,
+    Player,
+    StagePayload,
+    BetPayload,
+} from "../types/types";
+import { Socket } from "./socket";
+import { action, makeAutoObservable } from "mobx";
 
 export class Players {
     players: Record<string, Player> = {};
@@ -14,17 +19,29 @@ export class Players {
 
         this.socket.socket.on("preparePlayers", this.handlePrepare.bind(this));
         this.socket.socket.on("getCards", this.handleGetCards.bind(this));
-        this.socket.socket.on("playersStartUpdate", this.handleStartPlay.bind(this));
+        this.socket.socket.on(
+            "playersStartUpdate",
+            this.handleStartPlay.bind(this)
+        );
         this.socket.socket.on("foldMessage", this.handleFoldMessage.bind(this));
-        this.socket.socket.on("callMessage", this.handleCommandMessage.bind(this));
-        this.socket.socket.on("raiseMessage", this.handleCommandMessage.bind(this));
-        this.socket.socket.on("allinMessage", this.handleCommandMessage.bind(this));
+        this.socket.socket.on(
+            "callMessage",
+            this.handleCommandMessage.bind(this)
+        );
+        this.socket.socket.on(
+            "raiseMessage",
+            this.handleCommandMessage.bind(this)
+        );
+        this.socket.socket.on(
+            "allinMessage",
+            this.handleCommandMessage.bind(this)
+        );
         this.socket.socket.on("stageChange", this.handleStageChange.bind(this));
         this.socket.socket.on("cardsReveal", this.handleCardsReveal.bind(this));
         this.socket.socket.on("playWinner", this.handlePlayWinner.bind(this));
         this.socket.socket.on("endPlayersGame", this.handleGameOver.bind(this));
 
-        makeAutoObservable(this,{
+        makeAutoObservable(this, {
             socket: false,
             initPlayers: action.bound,
             setClientId: action.bound,
@@ -76,9 +93,11 @@ export class Players {
         const players: Record<string, Player> = JSON.parse(object);
 
         this.initPlayers(players);
-        const opponentId = Object.keys(this.players).find((player => player !== this.clientId));
+        const opponentId = Object.keys(this.players).find(
+            (player) => player !== this.clientId
+        );
 
-        if(!opponentId) {
+        if (!opponentId) {
             return;
         }
 
@@ -88,26 +107,27 @@ export class Players {
     handleGetCards(object: string): void {
         const cards: string[] = JSON.parse(object);
         this.setPlayerCards(this.clientId, cards);
+        this.setPlayerCards(this.opponentId, []);
     }
 
     handleStartPlay(object: string): void {
         const players: Record<string, Player> = JSON.parse(object);
 
-        Object.keys(players).map((player) => {
-           this.setPlayerRole(player, players[player].role!);
-           this.setPlayerBet(player, players[player].bet!);
-           this.setPlayerStack(player, players[player].stack!);
+        Object.keys(players).forEach((player) => {
+            this.setPlayerRole(player, players[player].role!);
+            this.setPlayerBet(player, players[player].bet!);
+            this.setPlayerStack(player, players[player].stack!);
         });
     }
 
     handleFoldMessage(object: string): void {
         const obj: FoldPayload = JSON.parse(object);
 
-        Object.keys(obj.players).map((player) => {
-           this.setPlayerBet(player, undefined)
-           this.setPlayerCards(player, undefined);
-           this.setPlayerRole(player, undefined);
-           this.setPlayerStack(player, obj.players[player].stack);
+        Object.keys(obj.players).forEach((player) => {
+            this.setPlayerBet(player, undefined);
+            this.setPlayerCards(player, undefined);
+            this.setPlayerRole(player, undefined);
+            this.setPlayerStack(player, obj.players[player].stack);
         });
     }
 
@@ -121,7 +141,7 @@ export class Players {
     handleStageChange(object: string): void {
         const obj: StagePayload = JSON.parse(object);
 
-        Object.keys(obj.players).map((player) => {
+        Object.keys(obj.players).forEach((player) => {
             this.setPlayerBet(player, obj.players[player].bet);
         });
     }
@@ -129,8 +149,8 @@ export class Players {
     handleCardsReveal(object: string): void {
         const obj: Record<string, string[]> = JSON.parse(object);
 
-        Object.keys(obj).map( (player) => {
-            if(player !== this.clientId) {
+        Object.keys(obj).forEach((player) => {
+            if (player !== this.clientId) {
                 this.setPlayerCards(player, obj[player]);
             }
         });
@@ -139,8 +159,8 @@ export class Players {
     handlePlayWinner(object: string): void {
         const obj: EndgamePayload = JSON.parse(object);
 
-        Object.keys(obj.players).map((player) => {
-           this.setPlayerStack(player, obj.players[player]);
+        Object.keys(obj.players).forEach((player) => {
+            this.setPlayerStack(player, obj.players[player]);
         });
     }
 

@@ -15,6 +15,6 @@ export function createContext<StoresMap extends { [K: string]: object }>(
 
     return {
         StoreProvider,
-        useStore
+        useStore,
     };
 }

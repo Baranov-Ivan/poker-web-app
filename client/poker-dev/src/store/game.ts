@@ -1,7 +1,6 @@
-import {Socket} from "./socket";
-import {action, makeAutoObservable} from "mobx";
-import {BetPayload, EndgamePayload, FoldPayload} from "../types/types";
-
+import { Socket } from "./socket";
+import { action, makeAutoObservable } from "mobx";
+import { BetPayload, EndgamePayload, FoldPayload } from "../types/types";
 
 export class Game {
     socket: Socket;
@@ -12,27 +11,46 @@ export class Game {
     message = "";
 
     constructor(socket: Socket) {
-        this.socket  = socket;
+        this.socket = socket;
         this.socket.socket.on("bankUpdate", this.handleBankUpdate.bind(this));
         this.socket.socket.on("tableUpdate", this.handleTableUpdate.bind(this));
-        this.socket.socket.on("playersStartUpdate", this.handleStartPlay.bind(this));
+        this.socket.socket.on("prepareScreen", this.handlePrepare.bind(this));
+        this.socket.socket.on(
+            "playersStartUpdate",
+            this.handleStartPlay.bind(this)
+        );
         this.socket.socket.on("turnOptions", this.handleTurnOptions.bind(this));
         this.socket.socket.on("foldMessage", this.handleFoldMessage.bind(this));
-        this.socket.socket.on("checkMessage", this.handleCheckMessage.bind(this));
-        this.socket.socket.on("callMessage", this.handleCommandMessage.bind(this));
-        this.socket.socket.on("raiseMessage", this.handleCommandMessage.bind(this));
-        this.socket.socket.on("allinMessage", this.handleCommandMessage.bind(this));
-        this.socket.socket.on("showtime",this.handleShowtimeMessage.bind(this));
-        this.socket.socket.on("cardsReveal",this.handleCardsReveal.bind(this));
-        this.socket.socket.on("playWinner",this.handlePlayWinner.bind(this));
-        this.socket.socket.on("endGame",this.handleGameOver.bind(this));
+        this.socket.socket.on(
+            "checkMessage",
+            this.handleCheckMessage.bind(this)
+        );
+        this.socket.socket.on(
+            "callMessage",
+            this.handleCommandMessage.bind(this)
+        );
+        this.socket.socket.on(
+            "raiseMessage",
+            this.handleCommandMessage.bind(this)
+        );
+        this.socket.socket.on(
+            "allinMessage",
+            this.handleCommandMessage.bind(this)
+        );
+        this.socket.socket.on(
+            "showtime",
+            this.handleShowtimeMessage.bind(this)
+        );
+        this.socket.socket.on("cardsReveal", this.handleCardsReveal.bind(this));
+        this.socket.socket.on("playWinner", this.handlePlayWinner.bind(this));
+        this.socket.socket.on("endGame", this.handleGameOver.bind(this));
 
         makeAutoObservable(this, {
             socket: false,
             setCurrentBank: action.bound,
             setCurrentTable: action.bound,
             setMessage: action.bound,
-        })
+        });
     }
 
     setCurrentBank(bank: number): void {
@@ -48,9 +66,13 @@ export class Game {
     }
 
     handleBankUpdate(object: string): void {
-        const bankObject: {bank: number} = JSON.parse(object);
+        const bankObject: { bank: number } = JSON.parse(object);
 
         this.setCurrentBank(bankObject.bank);
+    }
+
+    handlePrepare(): void {
+        this.setMessage("Prepare for game");
     }
 
     handleTableUpdate(object: string): void {
@@ -101,8 +123,8 @@ export class Game {
     }
 
     handleGameOver(loser: string): void {
-        if(this.socket.socket.id === loser) {
-            this.setMessage("You loose");
+        if (this.socket.socket.id === loser) {
+            this.setMessage("You lose");
         } else {
             this.setMessage("You win");
         }
@@ -110,7 +132,7 @@ export class Game {
         this.setCurrentBank(0);
 
         setTimeout(() => {
-           this.setMessage("");
+            this.setMessage("");
         }, 5000);
     }
 }

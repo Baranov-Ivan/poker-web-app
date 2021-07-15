@@ -1,7 +1,6 @@
-import {Actions, Page, RaiseInfo, TimerPayload} from "../types/types";
-import {Socket} from "./socket";
-import {action, makeAutoObservable} from "mobx";
-
+import { Actions, Page, RaiseInfo, TimerPayload } from "../types/types";
+import { Socket } from "./socket";
+import { action, makeAutoObservable } from "mobx";
 
 export class Controller {
     socket: Socket;
@@ -37,45 +36,63 @@ export class Controller {
     constructor(socket: Socket) {
         this.socket = socket;
 
-        this.socket.socket.on("gameCode",this.handleCreated.bind(this));
-        this.socket.socket.on("tooManyPlayers",this.handleManyPlayers.bind(this));
-        this.socket.socket.on("unknownCode",this.handleUnknownCode.bind(this));
-        this.socket.socket.on("prepareScreen",this.handlePrepare.bind(this));
-        this.socket.socket.on("getCards",this.handleIsPlaying.bind(this));
-        this.socket.socket.on("playersStartUpdate",this.handleStartPlay.bind(this));
-        this.socket.socket.on("turnOptions",this.handleTurnOptions.bind(this));
-        this.socket.socket.on("timerUpdate",this.handleTimerUpdate.bind(this));
-        this.socket.socket.on("foldMessage",this.handleFoldMessage.bind(this));
-        this.socket.socket.on("checkMessage",this.handleCommandMessage.bind(this));
-        this.socket.socket.on("callMessage",this.handleCommandMessage.bind(this));
-        this.socket.socket.on("raiseMessage",this.handleCommandMessage.bind(this));
-        this.socket.socket.on("allinMessage",this.handleCommandMessage.bind(this));
-        this.socket.socket.on("endGame",this.handleGameOver.bind(this));
+        this.socket.socket.on("gameCode", this.handleCreated.bind(this));
+        this.socket.socket.on(
+            "tooManyPlayers",
+            this.handleManyPlayers.bind(this)
+        );
+        this.socket.socket.on("unknownCode", this.handleUnknownCode.bind(this));
+        this.socket.socket.on("prepareScreen", this.handlePrepare.bind(this));
+        this.socket.socket.on("getCards", this.handleIsPlaying.bind(this));
+        this.socket.socket.on(
+            "playersStartUpdate",
+            this.handleStartPlay.bind(this)
+        );
+        this.socket.socket.on("turnOptions", this.handleTurnOptions.bind(this));
+        this.socket.socket.on("timerUpdate", this.handleTimerUpdate.bind(this));
+        this.socket.socket.on("foldMessage", this.handleFoldMessage.bind(this));
+        this.socket.socket.on(
+            "checkMessage",
+            this.handleCommandMessage.bind(this)
+        );
+        this.socket.socket.on(
+            "callMessage",
+            this.handleCommandMessage.bind(this)
+        );
+        this.socket.socket.on(
+            "raiseMessage",
+            this.handleCommandMessage.bind(this)
+        );
+        this.socket.socket.on(
+            "allinMessage",
+            this.handleCommandMessage.bind(this)
+        );
+        this.socket.socket.on("endGame", this.handleGameOver.bind(this));
 
         makeAutoObservable(this, {
-           socket: false,
-           toggleEmptyNameMessage: action.bound,
-           toggleEmptyCodeMessage: action.bound,
-           toggleManyPlayersMessage: action.bound,
-           toggleWrongCodeMessage: action.bound,
-           toggleIsPlaying: action.bound,
-           toggleIsFirst: action.bound,
-           togglePlayerTimer: action.bound,
-           toggleOpponentTimer: action.bound,
-           setCurrentTime: action.bound,
-           setGameCode: action.bound,
-           setCurrentPage: action.bound,
-           setClientId: action.bound,
-           removeClientId: action.bound,
-           setActions: action.bound,
-           setRaiseValue: action.bound,
-           toggleIsCurrentPlayer: action.bound,
+            socket: false,
+            toggleEmptyNameMessage: action.bound,
+            toggleEmptyCodeMessage: action.bound,
+            toggleManyPlayersMessage: action.bound,
+            toggleWrongCodeMessage: action.bound,
+            toggleIsPlaying: action.bound,
+            toggleIsFirst: action.bound,
+            togglePlayerTimer: action.bound,
+            toggleOpponentTimer: action.bound,
+            setCurrentTime: action.bound,
+            setGameCode: action.bound,
+            setCurrentPage: action.bound,
+            setClientId: action.bound,
+            removeClientId: action.bound,
+            setActions: action.bound,
+            setRaiseValue: action.bound,
+            toggleIsCurrentPlayer: action.bound,
         });
     }
 
     checkField(value: string, field: string): boolean {
-        if(!value.length) {
-            switch(field) {
+        if (!value.length) {
+            switch (field) {
                 case "name":
                     this.toggleEmptyNameMessage(true);
                     return false;
@@ -130,7 +147,7 @@ export class Controller {
     }
 
     handleCreateGame(playerName: string): void {
-        this.socket.socket.emit("newGame",playerName);
+        this.socket.socket.emit("newGame", playerName);
     }
 
     handleJoinGame(playerName: string, gameCode: string) {
@@ -142,7 +159,7 @@ export class Controller {
             playerName: playerName,
         };
 
-        this.socket.socket.emit("joinGame",JSON.stringify(objToSend));
+        this.socket.socket.emit("joinGame", JSON.stringify(objToSend));
     }
 
     handlePrepare(object: string): void {
@@ -188,7 +205,7 @@ export class Controller {
     }
 
     handleTurnOptions(object: string): void {
-        const actions: {actions: Actions} = JSON.parse(object);
+        const actions: { actions: Actions } = JSON.parse(object);
 
         this.setActions(actions.actions);
         this.toggleIsCurrentPlayer(true);
@@ -197,9 +214,7 @@ export class Controller {
     handleTimerUpdate(object: string): void {
         const timer: TimerPayload = JSON.parse(object);
 
-        console.log("Cur player from server", timer.currentPlayer);
-        console.log("Client id", this.clientId);
-        if(timer.currentPlayer === this.clientId) {
+        if (timer.currentPlayer === this.clientId) {
             this.togglePlayerTimer(true);
         } else {
             this.toggleOpponentTimer(true);
@@ -236,8 +251,8 @@ export class Controller {
         this.setCurrentPage(Page.Gameover);
 
         setTimeout(() => {
-           this.setCurrentPage(Page.Home);
-        },5000);
+            this.setCurrentPage(Page.Home);
+        }, 5000);
     }
 
     handleManyPlayers(): void {
@@ -249,27 +264,27 @@ export class Controller {
     }
 
     handleFoldClick(): void {
-        this.socket.socket.emit("foldCommand",this.gameCode);
+        this.socket.socket.emit("foldCommand", this.gameCode);
     }
 
     handleCallClick(): void {
-        this.socket.socket.emit("callCommand",this.gameCode);
+        this.socket.socket.emit("callCommand", this.gameCode);
     }
 
     handleCheckClick(): void {
-        this.socket.socket.emit("checkCommand",this.gameCode);
+        this.socket.socket.emit("checkCommand", this.gameCode);
     }
 
     handleAllinClick(): void {
-        this.socket.socket.emit("allinCommand",this.gameCode);
+        this.socket.socket.emit("allinCommand", this.gameCode);
     }
 
     handleRaiseClick(): void {
         const objToSend: RaiseInfo = {
             roomName: this.gameCode,
             value: this.raiseValue,
-        }
-        this.socket.socket.emit("raiseCommand",JSON.stringify(objToSend));
+        };
+        this.socket.socket.emit("raiseCommand", JSON.stringify(objToSend));
         this.setRaiseValue("");
     }
 }
