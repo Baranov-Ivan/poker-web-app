@@ -21,9 +21,11 @@ const state: Record<string, GameState> = {};
 const httpServer = createServer();
 const io = new Server(httpServer, {
     cors: {
-        origin: "http://localhost:3000",
+        //origin: "http://localhost:3000",
+        origin: "*",
         methods: ["GET", "POST"],
-        credentials: true,
+        //credentials: true,
+        credentials: false
     },
     transports: ["websocket", "polling"],
     allowEIO3: true,
@@ -847,4 +849,5 @@ function endGame(roomName: string, loser: string): void {
     return;
 }
 
-io.listen(3001);
+//io.listen(process.env.port || 3001);
+io.listen(parseInt(<string>process.env.PORT, 10) || 3001);
