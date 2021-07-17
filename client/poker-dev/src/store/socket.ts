@@ -5,5 +5,6 @@ export class Socket {
     socket = socketIOClient("https://frozen-mesa-84164.herokuapp.com/", {
         //withCredentials: true,
         withCredentials: false,
+        transports: ["websocket"],
     });
 }
