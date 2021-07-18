@@ -1,4 +1,4 @@
-# Texas Holdem Poker Web App ♠️♥️♦️♣️
+# Texas Hold 'em Poker Web App ♠️♥️♦️♣️
 
 This poker app is done in terms of [Evolution TypeScript Bootcamp] 2021 graduation project.  
 
