@@ -1,0 +1,271 @@
+@import url("https://fonts.googleapis.com/css2?family=Open+Sans&display=swap");
+
+html {
+    background: url("../assets/background.jpg");
+    background-size: cover;
+}
+
+body {
+    font-family: "Open Sans";
+    user-select: none;
+}
+
+.App {
+    text-align: center;
+    height: 100vh;
+}
+
+.players-container {
+    margin: 0 auto;
+    width: 40%;
+    display: flex;
+    justify-content: space-between;
+}
+
+.player {
+    /*align-self: flex-end;*/
+}
+
+.opponent {
+    /*align-self: flex-start;*/
+}
+
+.modal {
+    position: fixed;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.25);
+}
+
+.modal-content {
+    background-color: white;
+    position: absolute;
+    top: 20%;
+    left: 30%;
+    width: 40%;
+    padding: 20px;
+    border-radius: 5px;
+    border: 2px solid black;
+}
+
+canvas {
+    border: 2px solid black;
+}
+
+.buttons-wrapper {
+    width: 1000px;
+    margin: 0 auto;
+    display: flex;
+
+    justify-content: center;
+}
+
+.control-btn {
+    width: 200px;
+    height: 100px;
+
+    margin: 10px 10px;
+
+    font-size: 2em;
+    /*font-family: "Open Sans";*/
+    color: rgb(255, 255, 255);
+
+    border: 3px solid rgb(85, 16, 16);
+    border-radius: 10px;
+    text-align: center;
+    /*margin: auto;*/
+
+    background: rgb(207, 5, 5);
+    background: linear-gradient(
+        360deg,
+        rgba(207, 5, 5, 1) 0%,
+        rgba(148, 97, 97, 1) 40%,
+        rgba(85, 16, 16, 1) 100%
+    );
+}
+
+.control-btn:hover {
+    cursor: pointer;
+    background: rgb(207, 5, 5);
+    background: linear-gradient(
+        360deg,
+        rgba(207, 5, 5, 1) 0%,
+        rgba(233, 129, 129, 1) 40%,
+        rgba(207, 5, 5, 1) 100%
+    );
+}
+
+.control-btn:active {
+    cursor: pointer;
+    background: rgb(255, 185, 185);
+    background: linear-gradient(
+        360deg,
+        rgba(255, 185, 185, 1) 0%,
+        rgba(219, 99, 99, 1) 40%,
+        rgba(255, 185, 185, 1) 100%
+    );
+}
+
+.footer {
+    background: rgb(40, 92, 54);
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+
+    font-size: 1.5em;
+    /*font-family: "Open Sans";*/
+    color: rgb(255, 255, 255);
+}
+
+.raise-form {
+    /*border-radius: 20px;*/
+    /*border: 5px solid rgb(245, 238, 37);*/
+}
+
+.raise-input {
+    width: 190px;
+    height: 50px;
+
+    text-align: center;
+    color: rgb(255, 255, 255);
+    font-size: 1.75em;
+    border: 3px solid rgb(1, 77, 3);
+    border-radius: 10px;
+
+    background: rgb(195, 120, 34);
+    background: linear-gradient(
+        0deg,
+        rgba(195, 120, 34, 1) 0%,
+        rgba(49, 177, 103, 1) 100%
+    );
+}
+
+.logo-home {
+    width: 150px;
+    heigth: auto;
+
+    margin: 20px auto;
+}
+
+.logo-game {
+    width: 50px;
+    heigth: auto;
+
+    margin: 10px auto;
+}
+
+.gameover-message {
+    color: rgb(255, 255, 255);
+    font-size: 10em;
+
+    text-align: center;
+    position: absolute;
+    left: 50%;
+    top: 45%;
+    transform: translate(-50%, -50%);
+}
+
+.gamecode {
+    user-select: text;
+}
+
+.home-form {
+}
+
+.text-home {
+    color: rgb(255, 255, 255);
+    font-size: 2em;
+}
+
+.input-home {
+    width: 170px;
+    height: 40px;
+
+    border: 3px solid rgb(1, 77, 3);
+    border-radius: 10px;
+    background: rgb(250, 207, 207);
+    background: linear-gradient(
+        90deg,
+        rgba(250, 207, 207, 1) 0%,
+        rgba(125, 250, 121, 1) 30%,
+        rgba(206, 240, 47, 1) 100%
+    );
+
+    font-size: 1.3em;
+}
+
+.modal-content {
+    font-size: 1.5em;
+}
+
+.modal-btn {
+    width: 100px;
+    height: 30px;
+    font-size: 0.7em;
+
+    background-color: rgb(255, 255, 255);
+    border: 2px solid black;
+    border-radius: 3px;
+}
+
+.modal-btn:hover {
+    cursor: pointer;
+}
+
+.home-btn {
+    width: 90px;
+    height: 44px;
+
+    margin-left: 20px;
+
+    background: rgb(207, 5, 5);
+    background: linear-gradient(
+        360deg,
+        rgba(207, 5, 5, 1) 0%,
+        rgba(148, 97, 97, 1) 40%,
+        rgba(85, 16, 16, 1) 100%
+    );
+
+    border: 3px solid rgb(85, 16, 16);
+    border-radius: 5px;
+
+    color: rgb(255, 255, 255);
+    font-size: 1.1em;
+}
+
+.home-btn:hover {
+    cursor: pointer;
+    background: rgb(207, 5, 5);
+    background: linear-gradient(
+        360deg,
+        rgba(207, 5, 5, 1) 0%,
+        rgba(233, 129, 129, 1) 40%,
+        rgba(207, 5, 5, 1) 100%
+    );
+}
+
+.home-btn:active {
+    cursor: pointer;
+    background: rgb(255, 185, 185);
+    background: linear-gradient(
+        360deg,
+        rgba(255, 185, 185, 1) 0%,
+        rgba(219, 99, 99, 1) 40%,
+        rgba(255, 185, 185, 1) 100%
+    );
+}
+
+.waiting-wrapper {
+    position: absolute;
+    left: 50%;
+    top: 45%;
+    transform: translate(-50%, -50%);
+
+    font-size: 2em;
+    color: rgb(255, 255, 255);
+}
+
+.gamecode {
+    color: rgb(222, 214, 69);
+}
