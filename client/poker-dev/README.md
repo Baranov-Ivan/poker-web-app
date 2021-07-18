@@ -1,46 +1,35 @@
-# Getting Started with Create React App
+# Texas Holdem Poker Web App ♠️♥️♦️♣️
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This poker app is done in terms of [Evolution TypeScript Bootcamp] 2021 graduation project.
+This is client folder. Full README.md can be found [here].
 
-## Available Scripts
+## Tech
 
-In the project directory, you can run:
+- [Create React App] - core tech for client app UI
+- [TypeScript] - typed JavaScript power
+- [MobX] - state manager for reactive client view
 
-### `npm start`
+## Installation
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+You can clone this repository and run client app locally on your machine.
+Or try in online: https://poker-web-app.netlify.app/
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+After cloning this repo, if you want to run this app with local server, you need to find the line with this code ```socket = socketIOClient("https://frozen-mesa-84164.herokuapp.com/", {``` , comment it
+and uncomment line ```socket = socketIOClient("http://localhost:3001", {``` in the file ```socket.ts```
+Then open the terminal and run these commands.
 
-### `npm test`
+For client:
+```sh
+cd client\poker-dev
+npm install
+npm start
+```
+This will run app in dev mode, but you can access it in browser with ```http://localhost:3000/```
+Client app is running on ```localhost:3000``` and local server is listening on ```localhost:3001```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+[Create React App]: <https://create-react-app.dev/>
+[TypeScript]: <https://www.typescriptlang.org/>
+[MobX]: <https://mobx.js.org/README.html>
+[Node.js]: <https://nodejs.org/en/>
+[Evolution TypeScript Bootcamp]: <https://typescript-bootcamp.evolution.com/by>
+[here]: <https://github.com/Baranov-Ivan/poker-web-app/blob/main/README.md>
