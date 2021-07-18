@@ -2,7 +2,7 @@
     "name": "server",
     "version": "1.0.0",
     "description": "Poker server",
-    "main": "dist/server.js",
+    "main": "server.js",
     "dependencies": {
         "ts-node": "^10.0.0"
     },
@@ -18,8 +18,8 @@
         "build-ts": "tsc",
         "postinstall": "npm run build-ts",
         "start": "npm run serve",
-        "serve": "node dist/server.js",
-        "watch-node": "nodemon dist/server.js",
+        "serve": "node server.js",
+        "watch-node": "nodemon server.js",
         "watch-ts": "tsc -w"
     },
     "engines": {
