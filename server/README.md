@@ -1,6 +1,7 @@
 # Texas Holdem Poker Web App ♠️♥️♦️♣️
 
-This poker app is done in terms of [Evolution TypeScript Bootcamp] 2021 graduation project.
+This poker app is done in terms of [Evolution TypeScript Bootcamp] 2021 graduation project.  
+
 This is server folder. Full REAMDE.md can be found [here].
 
 ## Tech
