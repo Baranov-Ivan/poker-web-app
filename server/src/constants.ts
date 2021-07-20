@@ -54,4 +54,4 @@ export const CARD_POOL_LENGTH = CARD_POOL.length;
 export const SMALL_BLIND = 20;
 export const BIG_BLIND = 40;
 
-export const TURN_TIME = 20;
+export const TURN_TIME = 60;

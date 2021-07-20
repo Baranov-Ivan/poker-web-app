@@ -109,18 +109,17 @@ canvas {
 
 .footer {
     background: rgb(40, 92, 54);
-    position: absolute;
+    position: fixed;
     bottom: 0;
     width: 100%;
 
+    height: 81px;
+    margin-top: -81px;
     font-size: 1.5em;
-    /*font-family: "Open Sans";*/
-    color: rgb(255, 255, 255);
-}
 
-.raise-form {
-    /*border-radius: 20px;*/
-    /*border: 5px solid rgb(245, 238, 37);*/
+    color: rgb(255, 255, 255);
+
+    z-index: -1;
 }
 
 .raise-input {

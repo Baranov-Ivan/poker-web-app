@@ -25,7 +25,7 @@ const io = new Server(httpServer, {
         origin: "*",
         methods: ["GET", "POST"],
         //credentials: true,
-        credentials: false
+        credentials: false,
     },
     transports: ["websocket", "polling"],
     allowEIO3: true,
@@ -35,7 +35,6 @@ io.on("connection", (client: Socket) => {
     client.on("newGame", handleNewGame);
     client.on("joinGame", handleJoinGame);
 
-    //Need to unify under one command handle?
     client.on("foldCommand", applyFoldCommand);
     client.on("callCommand", applyCallCommand);
     client.on("checkCommand", applyCheckCommand);
@@ -214,6 +213,7 @@ function startPlay(roomName: string): void {
                 state[roomName].players[player].bet = BIG_BLIND;
                 state[roomName].players[player].stack -= BIG_BLIND;
                 state[roomName].currentBet = BIG_BLIND;
+                state[roomName].currentBank += BIG_BLIND; //addition
             }
             isBBAssigned = true;
         } else {
@@ -236,7 +236,8 @@ function startPlay(roomName: string): void {
                 state[roomName].players[player].role = Role.SB;
                 state[roomName].players[player].bet = SMALL_BLIND;
                 state[roomName].players[player].stack -= SMALL_BLIND;
-                state[roomName].currentBank = BIG_BLIND + SMALL_BLIND;
+                //state[roomName].currentBank = BIG_BLIND + SMALL_BLIND;
+                state[roomName].currentBank += SMALL_BLIND;
                 state[roomName].currentPlayerTurn = player;
             }
         }
@@ -265,16 +266,21 @@ function startPlay(roomName: string): void {
 function startInterval(roomName: string): void {
     state[roomName].currentTime = TURN_TIME;
 
-    io.to(state[roomName].currentPlayerTurn).emit(
-        "turnOptions",
-        JSON.stringify({ actions: calculatePossibleActions(roomName) })
-    );
-    timerInterval(roomName);
-    state[roomName].currentInterval = setInterval(
-        timerInterval,
-        1000,
-        roomName
-    );
+    const actions = calculatePossibleActions(roomName);
+    if (actions != null) {
+        io.to(state[roomName].currentPlayerTurn).emit(
+            "turnOptions",
+            JSON.stringify({ actions: calculatePossibleActions(roomName) })
+        );
+        timerInterval(roomName);
+        state[roomName].currentInterval = setInterval(
+            timerInterval,
+            1000,
+            roomName
+        );
+    } else {
+        checkGameState(roomName);
+    }
 }
 
 function timerInterval(roomName: string): void {
@@ -595,6 +601,7 @@ function handleStage(roomName: string): void {
             })();
             return;
         default:
+            console.log("LOL U NOOB");
             return;
     }
 }
@@ -659,11 +666,12 @@ function handleAllinState(roomName: string): void {
             })();
             return;
         default:
+            console.log("LOL U NOOB AGANE");
             return;
     }
 }
 
-function calculatePossibleActions(roomName: string): Actions {
+function calculatePossibleActions(roomName: string): Actions | null {
     const actions = {
         call: false,
         raise: false,
@@ -674,10 +682,10 @@ function calculatePossibleActions(roomName: string): Actions {
         raiseMinLim: -1,
     };
 
-    const playerBet =
-        state[roomName].players[state[roomName].currentPlayerTurn].bet;
-    const playerStack =
-        state[roomName].players[state[roomName].currentPlayerTurn].stack;
+    const currentPlayer = state[roomName].currentPlayerTurn;
+
+    const playerBet = state[roomName].players[currentPlayer].bet;
+    const playerStack = state[roomName].players[currentPlayer].stack;
     const currentBet = state[roomName].currentBet;
 
     if (playerBet === currentBet) {
@@ -699,6 +707,25 @@ function calculatePossibleActions(roomName: string): Actions {
         actions.call = true;
     }
 
+    if (playerStack === 0) {
+        state[roomName].allinCondition = true;
+        state[roomName].players[currentPlayer].madeTurn = true;
+        return null;
+    }
+
+    const otherPlayer = Object.keys(state[roomName].players).find(
+        (player) => player !== currentPlayer
+    );
+    if (
+        state[roomName].players[otherPlayer!].stack === 0 &&
+        state[roomName].players[currentPlayer].bet >=
+            state[roomName].players[otherPlayer!].bet &&
+        state[roomName].players[otherPlayer!].bet <= BIG_BLIND
+    ) {
+        state[roomName].allinCondition = true;
+        state[roomName].players[currentPlayer].madeTurn = true;
+        return null;
+    }
     return actions;
 }
 
@@ -767,6 +794,8 @@ function validateCommand(
 function handlePlayWinner(roomName: string, result: apiResult): void {
     //TODO: handle specific case when both players have equal hands and the bank splits
     if (result.winners.length === 2) {
+        handleMultipleWinners(roomName, result);
+        return;
     }
 
     const playersCardsObj: Record<string, string[]> = {};
@@ -821,6 +850,56 @@ function handlePlayWinner(roomName: string, result: apiResult): void {
     objToSend.players[winner] = state[roomName].players[winner].stack;
     objToSend.players[loser] = state[roomName].players[loser].stack;
     objToSend.message = message;
+    io.in(roomName).emit("cardsReveal", JSON.stringify(playersCardsObj));
+    setTimeout(() => {
+        io.in(roomName).emit("playWinner", JSON.stringify(objToSend));
+        setTimeout(() => {
+            startPlay(roomName);
+        }, 5000);
+    }, 3000);
+    return;
+}
+
+function handleMultipleWinners(roomName: string, result: apiResult): void {
+    const playersCardsObj: Record<string, string[]> = {};
+
+    console.log("RESULT FOR 2 WINNERS", result);
+
+    const objToSend: EndgamePayload = {
+        players: {},
+        bank: state[roomName].currentBank,
+        message: "",
+    };
+
+    Object.keys(state[roomName].players).forEach((player) => {
+        playersCardsObj[player] = state[roomName].players[player].cards;
+
+        if (state[roomName].allinCondition) {
+            if (
+                state[roomName].currentBank / 2 >
+                state[roomName].players[player].bet
+            ) {
+                state[roomName].players[player].stack +=
+                    state[roomName].currentBank / 2 +
+                    state[roomName].players[player].bet;
+            } else {
+                state[roomName].players[player].stack +=
+                    state[roomName].players[player].bet;
+            }
+        } else {
+            state[roomName].players[player].stack +=
+                state[roomName].currentBank / 2;
+        }
+
+        objToSend.players[player] = state[roomName].players[player].stack;
+    });
+
+    const message = "Players have equal hands. The bank splits";
+    state[roomName].currentBank = 0;
+
+    objToSend.bank = state[roomName].currentBank;
+    objToSend.message = message;
+
     io.in(roomName).emit("cardsReveal", JSON.stringify(playersCardsObj));
     setTimeout(() => {
         io.in(roomName).emit("playWinner", JSON.stringify(objToSend));
