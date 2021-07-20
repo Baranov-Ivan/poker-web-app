@@ -5,11 +5,9 @@ import { action, makeAutoObservable } from "mobx";
 export class Controller {
     socket: Socket;
 
-    isFirst = true;
     gameCode = "";
     currentPage: Page = Page.Home;
     clientId: string = "";
-    isPlaying = false;
     isCurrentPlayer = false;
 
     raiseValue = "";
@@ -43,11 +41,6 @@ export class Controller {
         );
         this.socket.socket.on("unknownCode", this.handleUnknownCode.bind(this));
         this.socket.socket.on("prepareScreen", this.handlePrepare.bind(this));
-        this.socket.socket.on("getCards", this.handleIsPlaying.bind(this));
-        this.socket.socket.on(
-            "playersStartUpdate",
-            this.handleStartPlay.bind(this)
-        );
         this.socket.socket.on("turnOptions", this.handleTurnOptions.bind(this));
         this.socket.socket.on("timerUpdate", this.handleTimerUpdate.bind(this));
         this.socket.socket.on("foldMessage", this.handleFoldMessage.bind(this));
@@ -75,8 +68,6 @@ export class Controller {
             toggleEmptyCodeMessage: action.bound,
             toggleManyPlayersMessage: action.bound,
             toggleWrongCodeMessage: action.bound,
-            toggleIsPlaying: action.bound,
-            toggleIsFirst: action.bound,
             togglePlayerTimer: action.bound,
             toggleOpponentTimer: action.bound,
             setCurrentTime: action.bound,
@@ -122,14 +113,6 @@ export class Controller {
         this.wrongCodeMessage = state;
     }
 
-    toggleIsPlaying(state: boolean): void {
-        this.isPlaying = state;
-    }
-
-    toggleIsFirst(state: boolean): void {
-        this.isFirst = state;
-    }
-
     toggleIsCurrentPlayer(state: boolean): void {
         this.isCurrentPlayer = state;
     }
@@ -166,10 +149,6 @@ export class Controller {
         this.setCurrentPage(Page.Game);
     }
 
-    handleIsPlaying(object: string): void {
-        this.toggleIsPlaying(true);
-    }
-
     setGameCode(gameCode: string): void {
         this.gameCode = gameCode;
     }
@@ -200,10 +179,6 @@ export class Controller {
         this.setCurrentPage(Page.Wait);
     }
 
-    handleStartPlay(object: string): void {
-        this.toggleIsFirst(false);
-    }
-
     handleTurnOptions(object: string): void {
         const actions: { actions: Actions } = JSON.parse(object);
 
@@ -228,7 +203,6 @@ export class Controller {
         this.togglePlayerTimer(false);
         this.toggleOpponentTimer(false);
         this.setCurrentTime(-1);
-        this.toggleIsPlaying(false);
     }
 
     handleCommandMessage(object: string) {
@@ -239,10 +213,8 @@ export class Controller {
     }
 
     handleGameOver(loser: string): void {
-        this.toggleIsFirst(true);
         this.setGameCode("");
         this.removeClientId();
-        this.toggleIsPlaying(false);
         this.toggleIsCurrentPlayer(false);
         this.toggleOpponentTimer(false);
         this.togglePlayerTimer(false);

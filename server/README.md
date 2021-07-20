@@ -10,11 +10,15 @@ This is server folder. Full REAMDE.md can be found [here].
  - [Node.js] - JavaScript runtime, heart of server
  - [Socket.IO] - JavaScript library for handling client-server communication
  - [Poker API] - JSON poker API for calculating the winning hand
+
+## Deploy
+
+- New: https://poker-web-app.netlify.app/
+- Old: https://poker-web-app-old.netlify.app/
   
 ## Installation
 
 You can clone this repository and run client app locally on your machine.
-Or try in online: https://poker-web-app.netlify.app/
 
 After cloning this repo, open the terminal and run these commands.
 
